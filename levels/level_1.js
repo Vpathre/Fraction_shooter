@@ -213,7 +213,10 @@ class Level_1 extends Phaser.Scene {
         this.physics.add.collider(blob1, platform);
         this.physics.add.collider(blob2, platform);
         this.physics.add.collider(blob1, blob2);
-        this.physics.add.collider(player, blob1, () => this.scene.start("Level_2"));
+        this.physics.add.collider(player, blob1, () => {
+            alert("Correct answer selected!");
+            this.scene.start("Level_2");
+        });
         this.physics.add.collider(player, blob2);
         this.physics.add.collider(this.physics.world, blob1);
         this.physics.add.collider(this.physics.world, blob2);

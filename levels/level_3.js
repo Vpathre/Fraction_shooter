@@ -185,10 +185,12 @@ class Level_3 extends Phaser.Scene {
      */
     level_platforms(platform) {
         var shooting_board = platform.create(100, 300, 'platform').setScale(0.15, 0.07).refreshBody();
-        var ledge1 = platform.create(405, 350, 'platform').setScale(0.25, 0.07).refreshBody();
+        var ledge1 = platform.create(450, 350, 'platform').setScale(0.25, 0.07).refreshBody();
         var ledge2 = platform.create(575, 200, 'platform').setScale(0.25, 0.07).refreshBody();
         var ledge3 = platform.create(575, 500, 'platform').setScale(0.25, 0.07).refreshBody();
-        ledge1.body.immovable, ledge2.body.immovable = true; //surface doesn't move
+        var ledge4 = platform.create(200, 250, 'platform').setScale(0.05, 0.5).refreshBody();
+        var ledge5 = platform.create(375, 500, 'platform').setScale(0.25, 0.07).refreshBody();
+        ledge1.body.immovable, ledge2.body.immovable, ledge3.body.immovable, ledge4.body.immovable, ledge5.body.immovable = true; //surface doesn't move
     }
 
     /**
@@ -197,13 +199,15 @@ class Level_3 extends Phaser.Scene {
     level_characters() {
         // var blobs = this.physics.Group(); // Try to make a group instead of individual bs
         player = this.physics.add.sprite(100, 250, 'red').setScale(0.06, 0.06);
-        blob1 = this.add.circle(405, 300, 20, this.rand_hex());
+        blob1 = this.add.circle(450, 300, 20, this.rand_hex());
         var blob2 = this.add.circle(575, 150, 20, this.rand_hex());
         var blob3 = this.add.circle(575, 450, 20, this.rand_hex());
+        var blob4 = this.add.circle(375, 450, 20, this.rand_hex());
         this.physics.add.existing(player);
         this.physics.add.existing(blob1);
         this.physics.add.existing(blob2);
         this.physics.add.existing(blob3);
+        this.physics.add.existing(blob4);
 
         // // add collisions
         // player.body.bounce.x, player.body.bounce.y = 0.7;
@@ -211,14 +215,20 @@ class Level_3 extends Phaser.Scene {
         blob1.body.bounce.x, blob1.body.bounce.y = 0.7;
         blob2.body.bounce.x, blob2.body.bounce.y = 0.7;
         blob3.body.bounce.x, blob3.body.bounce.y = 0.7;
+        blob4.body.bounce.x, blob4.body.bounce.y = 0.7;
         this.physics.add.collider(player, platform);
         this.physics.add.collider(blob1, platform);
         this.physics.add.collider(blob2, platform);
         this.physics.add.collider(blob3, platform);
+        this.physics.add.collider(blob4, platform);
         this.physics.add.collider(blob1, blob2);
-        this.physics.add.collider(player, blob1, () => this.scene.start("Level_4"));
+        this.physics.add.collider(player, blob1, () => {
+            alert("Correct answer selected!");
+            this.scene.start("Level_4");
+        });
         this.physics.add.collider(player, blob2);
         this.physics.add.collider(blob3, player);
+        this.physics.add.collider(blob4, player);
         this.physics.add.collider(this.physics.world, blob1);
         this.physics.add.collider(this.physics.world, blob2);
         this.physics.add.collider(this.physics.world, blob3);

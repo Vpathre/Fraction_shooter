@@ -6,7 +6,6 @@ var spring;
 var player, blob1;
 var SPEED = 900;
 var dots, dot;
-var trajectory_disable = false;
 
 // Constants
 var velocity_x = 100;
@@ -31,6 +30,8 @@ class Level_2 extends Phaser.Scene {
     }
 
     create() {
+        var trajectory_disable = false;
+
         // set bounds
         this.physics.world.setBounds(0, 0, 750, 600);
 
@@ -216,7 +217,10 @@ class Level_2 extends Phaser.Scene {
         this.physics.add.collider(blob2, platform);
         this.physics.add.collider(blob3, platform);
         this.physics.add.collider(blob1, blob2);
-        this.physics.add.collider(player, blob1, () => this.scene.start("Level_3"));
+        this.physics.add.collider(player, blob1, () => {
+            alert("Correct answer selected!");
+            this.scene.start("Level_3");
+        });
         this.physics.add.collider(player, blob2);
         this.physics.add.collider(blob3, player);
         this.physics.add.collider(this.physics.world, blob1);
