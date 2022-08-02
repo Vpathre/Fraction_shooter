@@ -1,11 +1,16 @@
 var platform = null;
-var timer, p2text, timerText, lives_text, ans;
-var time = 25;
+var timer, p2text = '',
+    timerText = '',
+    lives_text = '',
+    ans = '';
 var spring;
+var time = 25;
 // blob1 will always be the answer 
 var player, blob1;
 var SPEED = 900;
 var dots, dot;
+var num_lives;
+var trajectory_disable;
 
 // Constants
 var velocity_x = 100;
@@ -30,7 +35,13 @@ class Level_2 extends Phaser.Scene {
     }
 
     create() {
-        var trajectory_disable = false;
+        timer,
+        p2text = '',
+        timerText = '',
+        lives_text = '',
+        ans = '';
+        trajectory_disable = false;
+        num_lives = 3;
 
         // set bounds
         this.physics.world.setBounds(0, 0, 750, 600);
@@ -82,16 +93,23 @@ class Level_2 extends Phaser.Scene {
             align: "center",
         });
 
-        // // add timer
-        // // Create our Timer
-        // timer = gameScene.time.create(false);
+        // start ticking the timer text 1000 ms interval
+        setInterval(function () {
+            time--;
+            if (time > 9) {
+                timerText.setText("Time: 0:" + time);
+            }
 
-        // // Set a TimerEvent to occur after 2 seconds
-        // timer.loop(2000, updateCounter, this);
+            if (time < 9) {
+                timerText.setText("Time: 0:0" + time);
+            }
 
-        // // Start the timer running - this is important!
-        // // It won't start automatically, allowing you to hook it to button events and the like.
-        // timer.start();
+            if (time == 0) {
+                setTimeout(() => {
+                    alert("GAME OVER")
+                }, 1000);
+            }
+        }, 1000);
 
         // squeeze
         // this.tweens.add({
@@ -221,8 +239,14 @@ class Level_2 extends Phaser.Scene {
             alert("Correct answer selected!");
             this.scene.start("Level_3");
         });
-        this.physics.add.collider(player, blob2);
-        this.physics.add.collider(blob3, player);
+        this.physics.add.collider(player, blob2, () => {
+            num_lives--;
+            lives_text.setText("Lives:" + num_lives);
+        });
+        this.physics.add.collider(blob3, player, () => {
+            num_lives--;
+            lives_text.setText("Lives:" + num_lives);
+        });
         this.physics.add.collider(this.physics.world, blob1);
         this.physics.add.collider(this.physics.world, blob2);
         this.physics.add.collider(this.physics.world, blob3);
@@ -252,10 +276,13 @@ class Level_2 extends Phaser.Scene {
      * @param {y} y end position of the expected point of the end of the ball's y trajectory
      */
     drawTrajectory(x, y) {
-        var xf = Math.abs(x - player.body.x);
-        var yf = Math.abs(y - player.body.y);
+        var xf = (x - player.body.x);
+        var yf = (y - player.body.y);
+        var m = yf / xf;
+        // var xf = Math.abs(x - player.body.x);
+        // var yf = Math.abs(y - player.body.y);
         var theta = Math.tan(yf / xf); //tan of angle between start and end
-        // var c = y - (m * x);
+        var c = y - (m * x);
         var dist = Math.sqrt((xf ** 2) + (yf ** 2));
 
         // v*t - (1/2)a*(t^2) ;
@@ -264,8 +291,9 @@ class Level_2 extends Phaser.Scene {
 
         for (let i = 0; i < 25; i++) {
             var temp_x = (player.body.x + 45) + (i * 20);
-            var temp_y = (Math.tan(theta) * i) - ((gravity / (2 * (velocity_x * Math.cos(theta)) ** 2)) * i * i); // very broken, please fix
-            dot = this.add.sprite(temp_x, temp_y + 250, 'white').setScale(0.005, 0.005);
+            // var temp_y = (Math.tan(theta) * i) - ((gravity / (2 * (velocity_x * Math.cos(theta)) ** 2)) * i * i); // very broken, please fix
+            var temp_y = -1 * m * temp_x + c;
+            dot = this.add.sprite(temp_x, temp_y, 'white').setScale(0.005, 0.005);
             dots.add(dot);
         }
     }

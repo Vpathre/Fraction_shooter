@@ -6,7 +6,8 @@ var spring;
 var player, blob1;
 var SPEED = 900;
 var dots, dot;
-var trajectory_disable = false;
+var num_lives;
+var trajectory_disable;
 
 // Constants
 var velocity_x = 100;
@@ -33,6 +34,9 @@ class Level_5 extends Phaser.Scene {
     create() {
         // set bounds
         this.physics.world.setBounds(0, 0, 750, 600);
+
+        trajectory_disable = false;
+        num_lives = 3;
 
         //background
         let backg = this.add.sprite(0, 0, "background");
@@ -225,9 +229,18 @@ class Level_5 extends Phaser.Scene {
         this.physics.add.collider(blob4, platform);
         this.physics.add.collider(blob1, blob2);
         this.physics.add.collider(player, blob1, () => alert("WELL DONE!! GAME OVER"));
-        this.physics.add.collider(player, blob2);
-        this.physics.add.collider(blob3, player);
-        this.physics.add.collider(blob4, player);
+        this.physics.add.collider(player, blob2, () => {
+            num_lives--;
+            lives_text.setText("Lives:" + num_lives);
+        });
+        this.physics.add.collider(blob3, player, () => {
+            num_lives--;
+            lives_text.setText("Lives:" + num_lives);
+        });
+        this.physics.add.collider(blob4, player, () => {
+            num_lives--;
+            lives_text.setText("Lives:" + num_lives);
+        });
         this.physics.add.collider(blob4, blob1);
         this.physics.add.collider(this.physics.world, blob1);
         this.physics.add.collider(this.physics.world, blob2);
@@ -259,10 +272,13 @@ class Level_5 extends Phaser.Scene {
      * @param {y} y end position of the expected point of the end of the ball's y trajectory
      */
     drawTrajectory(x, y) {
-        var xf = Math.abs(x - player.body.x);
-        var yf = Math.abs(y - player.body.y);
+        var xf = (x - player.body.x);
+        var yf = (y - player.body.y);
+        var m = yf / xf;
+        // var xf = Math.abs(x - player.body.x);
+        // var yf = Math.abs(y - player.body.y);
         var theta = Math.tan(yf / xf); //tan of angle between start and end
-        // var c = y - (m * x);
+        var c = y - (m * x);
         var dist = Math.sqrt((xf ** 2) + (yf ** 2));
 
         // v*t - (1/2)a*(t^2) ;
@@ -271,8 +287,9 @@ class Level_5 extends Phaser.Scene {
 
         for (let i = 0; i < 25; i++) {
             var temp_x = (player.body.x + 45) + (i * 20);
-            var temp_y = (Math.tan(theta) * i) - ((gravity / (2 * (velocity_x * Math.cos(theta)) ** 2)) * i * i); // very broken, please fix
-            dot = this.add.sprite(temp_x, temp_y + 250, 'white').setScale(0.005, 0.005);
+            // var temp_y = (Math.tan(theta) * i) - ((gravity / (2 * (velocity_x * Math.cos(theta)) ** 2)) * i * i); // very broken, please fix
+            var temp_y = -1 * m * temp_x + c;
+            dot = this.add.sprite(temp_x, temp_y, 'white').setScale(0.005, 0.005);
             dots.add(dot);
         }
     }

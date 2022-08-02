@@ -1,16 +1,20 @@
 var platform = null;
-var timer, p2text, timerText, lives_text, ans;
+var timer, p2text = '',
+    timerText = '',
+    lives_text = '',
+    ans = '';
 var time = 25;
 var spring;
 // blob1 will always be the answer 
 var player, blob1;
 var SPEED = 900;
 var dots, dot;
-var trajectory_disable = false;
+var num_lives;
+var trajectory_disable;
 
 // Constants
-var velocity_x = 100;
-var velocity_y = 100;
+var velocity_x = 200;
+var velocity_y = 200;
 var gravity = 400;
 
 // Class to Level 1 scene
@@ -31,6 +35,10 @@ class Level_1 extends Phaser.Scene {
     }
 
     create() {
+        num_lives = 3;
+        trajectory_disable = false;
+        let q_object = new Questions('', '', true);
+
         // set bounds
         this.physics.world.setBounds(0, 0, 750, 600);
 
@@ -61,18 +69,20 @@ class Level_1 extends Phaser.Scene {
         });
 
         //question for each level
-        p2text = this.add.text(300, 20, "Question 1:", {
+        let data = q_object.getRandomQuestion();
+
+        p2text = this.add.text(300, 20, data[0], {
             fontSize: "24px",
             fill: 'white'
         });
 
         //question for each level
-        lives_text = this.add.text(600, 20, "Lives:3", {
+        lives_text = this.add.text(600, 20, "Lives:" + num_lives, {
             fontSize: "24px",
             fill: 'white'
         });
 
-        ans = this.add.text(0, 0, "Ans", {
+        ans = this.add.text(0, 0, data[1], {
             font: "24px Arial",
             fill: "#ffffff",
             wordWrap: true,
@@ -81,16 +91,24 @@ class Level_1 extends Phaser.Scene {
             align: "center",
         });
 
-        // // add timer
-        // // Create our Timer
-        // timer = gameScene.time.create(false);
+        // start ticking the timer text 1000 ms interval
+        setInterval(function () {
+            time--;
+            if (time > 9) {
+                timerText.setText("Time: 0:" + time);
+            }
 
-        // // Set a TimerEvent to occur after 2 seconds
-        // timer.loop(2000, updateCounter, this);
+            if (time < 9) {
+                timerText.setText("Time: 0:0" + time);
+            }
 
-        // // Start the timer running - this is important!
-        // // It won't start automatically, allowing you to hook it to button events and the like.
-        // timer.start();
+            if (time == 0) {
+                setTimeout(() => {
+                    alert("GAME OVER")
+                }, 1000);
+            }
+        }, 1000);
+
 
         // squeeze
         // this.tweens.add({
@@ -143,17 +161,17 @@ class Level_1 extends Phaser.Scene {
             }
 
         }, this);
-
     }
 
 
     update(delta) {
         var pointer = this.input.activePointer;
 
-        timerText = this.add.text(30, 20, "Time: 0:" + time, {
-            fontSize: "20px",
-            fill: 'white'
-        });
+        // timerText = this.add.text(30, 20, "Time: 0:" + time, {
+        //     fontSize: "20px",
+        //     fill: 'white'
+        // });
+
 
         if (!trajectory_disable) {
             this.drawTrajectory(pointer.x, pointer.y);
@@ -161,8 +179,6 @@ class Level_1 extends Phaser.Scene {
 
         ans.x = Math.floor(blob1.x - 35 + blob1.width / 2);
         ans.y = Math.floor(blob1.y - 35 + blob1.height / 2);
-
-
     }
 
 
@@ -217,7 +233,10 @@ class Level_1 extends Phaser.Scene {
             alert("Correct answer selected!");
             this.scene.start("Level_2");
         });
-        this.physics.add.collider(player, blob2);
+        this.physics.add.collider(player, blob2, () => {
+            num_lives--;
+            lives_text.setText("Lives:" + num_lives);
+        });
         this.physics.add.collider(this.physics.world, blob1);
         this.physics.add.collider(this.physics.world, blob2);
         player.setCollideWorldBounds(true);
@@ -246,20 +265,25 @@ class Level_1 extends Phaser.Scene {
      * @param {y} y end position of the expected point of the end of the ball's y trajectory
      */
     drawTrajectory(x, y) {
-        var xf = Math.abs(x - player.body.x);
-        var yf = Math.abs(y - player.body.y);
-        var theta = Math.tan(yf / xf); //tan of angle between start and end
-        // var c = y - (m * x);
-        var dist = Math.sqrt((xf ** 2) + (yf ** 2));
+        var xf = (x - player.body.x);
+        var yf = (y - player.body.y);
+        var m = yf / xf;
+        var c = y - (m * x);
+        // var xf = Math.abs(x - player.body.x); // x distance between two points
+        // var yf = Math.abs(y - player.body.y);
+        // var theta = Math.tan(yf / xf) * 180 / Math.PI; //tan of angle between start and end
+        // var dist = Math.sqrt((xf ** 2) + (yf ** 2));
+        // var vo = Math.sqrt((velocity_x) ** 2 + (velocity_y) ** 2);
 
-        // v*t - (1/2)a*(t^2) ;
         dots.clear(true);
         dots = this.add.group();
 
         for (let i = 0; i < 25; i++) {
             var temp_x = (player.body.x + 45) + (i * 20);
-            var temp_y = (Math.tan(theta) * i) - ((gravity / (2 * (velocity_x * Math.cos(theta)) ** 2)) * i * i); // very broken, please fix
-            dot = this.add.sprite(temp_x, temp_y + 250, 'white').setScale(0.005, 0.005);
+            // var temp_y = (((-1 * (gravity / (2 * vo) ** 2) * (Math.tan(theta) ** 2 + 1)) * temp_x * temp_x) + (Math.tan(theta) * temp_x)); // very broken, please fix
+            var temp_y = -1 * m * temp_x + c;
+
+            dot = this.add.sprite(temp_x, temp_y, 'white').setScale(0.005, 0.005);
             dots.add(dot);
         }
     }
