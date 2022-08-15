@@ -24,11 +24,20 @@
     <script src="./Plugins/codemirror/mode/markdown/markdown.js"></script>
     <script src="./Plugins/codemirror/addon/edit/closebrackets.js"></script>
 
+    <!-- INJECT MAKECODE -->
+    <script src="./Plugins/pxt-blockly/blockly_compressed.js"></script>
+    <script src="./Plugins/pxt-blockly/blocks_compressed.js"></script>
+    <script src="./Plugins/pxt-blockly/msg/js/en.js"></script>
+    <script src="./Plugins/pxt-blockly/javascript_compressed.js"></script>
+
+    <!-- INSERT BLOCKLY -->
+    <script src=""></script>
+
     <!----------------------------------------------------------------------------------------------------->
     <!--------------------------------------------LIBRARY STUFF-------------------------------------------->
     <!----------------------------------------------------------------------------------------------------->
 
-    <script src="./libraries/phaser.js"></script> <!-- PHASER FRAMEWORK-->
+    <script src="./libraries/phaser.js"></script><!-- PHASER FRAMEWORK -->
     <!-- <script src="//cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script> PHASER -->
     <!-- <script src="./libraries/matter.min.js"></script> MATTER -->
 
@@ -56,13 +65,8 @@
             out!</h1>
         <canvas id="canvas" width="750" height="600"></canvas>
         <div class="buttons">
-            <div class="edit">
-                <textarea id="editor"></textarea>
-            </div>
-            <div class="controls">
-                <button onclick="reset_list();" class="int_buttons">Reset</button>
-                <button onclick="render();" class="int_buttons">Run</button>
-                <!-- <input id="slider" name="slider" type="range" value=0 style="margin-top:190px"> -->
+            <div id="blockly">
+                <script src="./blockly_editor.js"></script>
             </div>
         </div>
     </div>
@@ -71,6 +75,11 @@
         <span onclick="error_window('close');" class="close_x">x</span>
         <p id="err_msg" class="error_text"></p>
     </div>
+    <script>
+        var workspace = Blockly.inject('blockly', {
+            toolbox: toolbox
+        });
+    </script>
     <script src="main.js"></script>
 </body>
 

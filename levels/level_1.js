@@ -1,21 +1,50 @@
 var platform = null;
-var timer, p2text = '',
-    timerText = '',
-    lives_text = '',
-    ans = '';
-var time = 25;
-var spring;
-// blob1 will always be the answer 
-var player, blob1;
-var SPEED = 900;
-var dots, dot;
-var num_lives;
-var trajectory_disable;
+var circle, body;
 
 // Constants
 var velocity_x = 200;
 var velocity_y = 200;
 var gravity = 400;
+
+// globals for new ball
+var ball;
+
+// global for fraction line on ball
+var line1, line2;
+var constraint = true;
+var cons;
+var graphics;
+
+// globals for input keys
+var SPACE;
+var LEFT;
+var RIGHT;
+var UP;
+var DOWN;
+
+// make global variable to store the questions that are asked in the level
+var questions = [];
+var current_question;
+var baskets = [];
+
+// text for scorekeeping
+var total_score, current_score;
+var ball_num, ball_den;
+var ball_num_text, ball_den_text;
+var total_score_keeper = 0;
+var current_score_keeper = 100;
+var total_score_text, current_score_text;
+var level_counter = 0;
+var timer = 800;
+var interval;
+
+
+var Body = Phaser.Physics.Matter.Matter.Body;
+var Bodies = Phaser.Physics.Matter.Matter.Bodies;
+var Composite = Phaser.Physics.Matter.Matter.Composite;
+var Parser = Phaser.Physics.Matter.PhysicsEditorParser;
+var Matter = Phaser.Physics.Matter.Matter;
+
 
 // Class to Level 1 scene
 class Level_1 extends Phaser.Scene {
@@ -31,160 +60,173 @@ class Level_1 extends Phaser.Scene {
         this.load.image('white', 'assets/white.png');
         this.load.image('background', 'assets/sky_background.jpg');
         this.load.image('platform', 'assets/platform.jpg');
-
+        this.load.image('white_rect', 'assets/white_rectangle.png');
+        this.load.image('black_rect', 'assets/black_rectangle.png');
     }
 
     create() {
-        num_lives = 3;
-        trajectory_disable = false;
-        let q_object = new Questions('', '', true);
 
-        // set bounds
-        this.physics.world.setBounds(0, 0, 750, 600);
+        // add background image
+        this.add.image(400, 300, 'background').setScale(2, 2);
 
-        //background
-        let backg = this.add.sprite(0, 0, "background");
-        backg.setOrigin(0, 0);
-        let scaleX = this.cameras.main.width / backg.width;
-        let scaleY = this.cameras.main.height / backg.height;
-        let scale = Math.max(scaleX, scaleY);
-        backg.setScale(scale).setScrollFactor(0);
+        // create the platform at the top of the page
+        this.matter.add.image(375, 0, 'platform', null, {
+            isStatic: true
+        }).setScale(0.05, 0.5);
 
-        // add platforms
-        platform = this.physics.add.staticGroup();
-        let surface = platform.create(600, 600, 'platform').setScale(100, 0.25).refreshBody(); //resize the platform to cover the bottom of the image
-        surface.body.immovable = true; //surface doesn't move
-        this.level_platforms(platform);
+        // create and place baskets on the screen
+        var basket = '60 0 70 0 70 90 130 90 130 0 140 0 140 100 60 100 60 0';
 
-        // add characters
-        this.level_characters();
+        for (var i = 0; i < 7; i++) {
+            var poly = this.add.polygon(60 + (105 * i), 560, basket, 0x000000, 0.8);
+            baskets.push(poly);
+            this.matter.add.gameObject(poly, {
+                shape: {
+                    type: 'fromVerts',
+                    verts: basket,
+                    flagInternal: true
+                },
+                isStatic: true
+            }).setScale(1.1, 1.1);
+        }
 
-        // trajectory
-        dots = this.add.group();
+        // fill baskets with answer "blocks"
+        // create coloured blocks worth numerator
+        // total blocks worth denominator
+        // randomly allocate block representations between the 7 baskets
 
-        //timer
-        timerText = this.add.text(30, 20, "Time: 0:" + time, {
-            fontSize: "20px",
-            fill: 'white'
+        for (let i = 0; i < 7; i++) {
+            let temp = this.rand_interval(0, 199);
+            this.block_creator(i, questions_array[temp].numerator, questions_array[temp].denominator);
+            questions.push(questions_array[temp]);
+        }
+
+
+        // add bounds to this world
+        let bounds = this.matter.world.setBounds(0, 0, 750, 600);
+
+
+        // line2 = this.add.line(cons.bodyB.x, cons.bodyB.y, cons.bodyB.x, cons.bodyB.y, cons.pointA.x, cons.pointA.y, 0xF5F514);
+        graphics = this.add.graphics();
+        graphics.lineStyle(128, 0xffffff, 1);
+        line2 = graphics.lineBetween(375, 50, 475, 100);
+
+
+        this.ball_creator();
+
+
+        total_score_text = this.add.text(5, 10, 'Total Score: ' + total_score_keeper, {
+            fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'
         });
 
-        //question for each level
-        let data = q_object.getRandomQuestion();
-
-        p2text = this.add.text(300, 20, data[0], {
-            fontSize: "24px",
-            fill: 'white'
+        current_score_text = this.add.text(5, 40, 'Current Score: ' + current_score_keeper, {
+            fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'
         });
-
-        //question for each level
-        lives_text = this.add.text(600, 20, "Lives:" + num_lives, {
-            fontSize: "24px",
-            fill: 'white'
-        });
-
-        ans = this.add.text(0, 0, data[1], {
-            font: "24px Arial",
-            fill: "#ffffff",
-            wordWrap: true,
-            wordWrapWidth: blob1.width,
-            wordWrapHeight: blob1.height,
-            align: "center",
-        });
-
-        // start ticking the timer text 1000 ms interval
-        setInterval(function () {
-            time--;
-            if (time > 9) {
-                timerText.setText("Time: 0:" + time);
-            }
-
-            if (time < 9) {
-                timerText.setText("Time: 0:0" + time);
-            }
-
-            if (time == 0) {
-                setTimeout(() => {
-                    alert("GAME OVER")
-                }, 1000);
-            }
-        }, 1000);
+        current_score_keeper--;
 
 
-        // squeeze
-        // this.tweens.add({
-        //     targets: r1,
-        //     scaleX: 0.25,
-        //     scaleY: 0.5,
-        //     yoyo: true,
-        //     repeat: -1,
-        //     ease: 'Sine.easeInOut'
-        // });
+        setInterval(() => {
+            total_score_text.destroy();
+            current_score_text.destroy();
 
-        // fade in and out
-        // this.tweens.add({
-        //     targets: r1,
-        //     alpha: 0.7,
-        //     yoyo: true,
-        //     repeat: -1,
-        //     ease: 'Sine.easeInOut'
-        // });
+            total_score_text = this.add.text(5, 10, 'Total Score: ' + total_score_keeper, {
+                fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'
+            });
 
-        // spin
-        // this.tweens.add({
-        //     targets: r1,
-        //     angle: 90,
-        //     yoyo: true,
-        //     repeat: -1,
-        //     ease: 'Sine.easeInOut'
-        // });
+            current_score_text = this.add.text(5, 40, 'Current Score: ' + current_score_keeper, {
+                fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'
+            });
+            current_score_keeper--;
+        }, timer);
 
-        // add event listener
-        // this.game.input.activePointer.x = this.game.width / 2;
-        // this.game.input.activePointer.y = this.game.height / 2 - 100;
-
-        this.input.mouse.disableContextMenu();
-
-        this.input.on('pointerdown', function (pointer) {
-
-            if (pointer.rightButtonDown()) {
-                if (pointer.getDuration() > 500) {
-                    this.shoot(pointer.x, pointer.y);
-                } else {
-                    this.shoot(pointer.x, pointer.y);
-                }
-            } else {
-                if (pointer.getDuration() > 500) {
-                    this.shoot(pointer.x, pointer.y);
-                } else {
-                    this.shoot(pointer.x, pointer.y);
-                }
-            }
-
-        }, this);
     }
 
 
     update(delta) {
-        var pointer = this.input.activePointer;
+        // destroy lines and text added during rendering update
+        line1.destroy();
+        line2.destroy();
+        ball_num_text.destroy();
+        ball_den_text.destroy();
 
-        // timerText = this.add.text(30, 20, "Time: 0:" + time, {
-        //     fontSize: "20px",
-        //     fill: 'white'
-        // });
+        // setTimeout(this.scoreKeeper, 0);
 
-
-        if (!trajectory_disable) {
-            this.drawTrajectory(pointer.x, pointer.y);
+        // update the ball speed, make it swing
+        if (ball.y < 50 && ball.x < 375) {
+            ball.setVelocity(12);
+        } else if (ball.y < 50 && ball.x > 375) {
+            ball.setVelocity(12);
         }
 
-        ans.x = Math.floor(blob1.x - 35 + blob1.width / 2);
-        ans.y = Math.floor(blob1.y - 35 + blob1.height / 2);
+        // check for key presses
+        if (LEFT.isDown) {
+            ball.setVelocityX(-2);
+        }
+
+        if (RIGHT.isDown) {
+            ball.setVelocityX(2);
+        }
+
+        if (UP.isDown) {
+            ball.setVelocityY(-1.75);
+        }
+
+        line1 = this.add.line(ball.x, ball.y, 0, 0, 30, 0, 0x000000);
+
+        ball_num_text = this.add.text(ball.x - 5, ball.y - 20, ball_num, {
+            fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'
+        });
+        ball_den_text = this.add.text(ball.x - 7, ball.y - 1, ball_den, {
+            fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'
+        });
+
+        this.logic_checker(ball, current_question);
     }
 
 
-    updateTimer() {
-        time--;
+    ball_creator() {
+        // create ball
+        circle = this.add.circle(300, 45, 22, 0xF21818);
+        body = this.matter.add.circle(300, 45, 22);
+        ball = this.matter.add.gameObject(circle, body);
+        ball.frictionAir = 0;
+        body.restitution = 0.5;
+        cons = this.matter.add.worldConstraint(body, 120, 1, {
+            pointA: {
+                x: 375,
+                y: 50
+            },
+            bodyB: body
+        });
+
+
+        // add line for fraction representation to the ball
+        line1 = this.add.line(ball.x, ball.y, ball.x, ball.y, ball.x, ball.y, 0x000000);
+
+        // Add input keys to the scene
+        // SPACEBAR
+        this.input.keyboard.on('keydown-SPACE', function () {
+            cons.pointA = null;
+            cons.bodyB = null;
+            line2.destroy();
+            constraint = false;
+        }, this);
+
+        LEFT = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
+        RIGHT = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
+        UP = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
+
+        this.ask_question();
+        ball_num = current_question.numerator;
+        ball_den = current_question.denominator;
+        ball_num_text = this.add.text(ball.x, ball.y - 15, ball_num, {
+            fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'
+        });
+        ball_den_text = this.add.text(ball.x, ball.y + 15, ball_den, {
+            fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'
+        });
     }
+
 
     /**
      * Generates a random value occuring in a provided interval
@@ -208,39 +250,54 @@ class Level_1 extends Phaser.Scene {
         ledge1.body.immovable, ledge2.body.immovable = true; //surface doesn't move
     }
 
-    /**
-     * function uesd to deal with unique characters for each level, must be modified for each level of the game
-     */
-    level_characters() {
-        // var blobs = this.physics.Group(); // Try to make a group instead of individual bs
-        player = this.physics.add.sprite(100, 250, 'red').setScale(0.06, 0.06);
-        blob1 = this.add.circle(575, 350, 20, this.rand_hex());
-        var blob2 = this.add.circle(575, 150, 20, this.rand_hex());
-        this.physics.add.existing(player);
-        this.physics.add.existing(blob1);
-        this.physics.add.existing(blob2);
 
-        // // add collisions
-        // player.body.bounce.x, player.body.bounce.y = 0.7;
-        player.setBounce(0.7);
-        blob1.body.bounce.x, blob1.body.bounce.y = 0.7;
-        blob2.body.bounce.x, blob2.body.bounce.y = 0.7;
-        this.physics.add.collider(player, platform);
-        this.physics.add.collider(blob1, platform);
-        this.physics.add.collider(blob2, platform);
-        this.physics.add.collider(blob1, blob2);
-        this.physics.add.collider(player, blob1, () => {
-            alert("Correct answer selected!");
-            this.scene.start("Level_2");
-        });
-        this.physics.add.collider(player, blob2, () => {
-            num_lives--;
-            lives_text.setText("Lives:" + num_lives);
-        });
-        this.physics.add.collider(this.physics.world, blob1);
-        this.physics.add.collider(this.physics.world, blob2);
-        player.setCollideWorldBounds(true);
+    // based on the index of the basket, the blocks
+    block_creator(number, numerator, total) {
+        // draw the total number of blocks in each respective basket
+        for (let i = 0; i < total; i++) {
+            // if numerator is 0
+            if (numerator == 0) {
+                return;
+            }
+
+            // if denominator is 0
+            else if (total == 0) {
+                return;
+            }
+
+            // if the block is a numerator, color it
+            else if (i + 1 <= numerator) {
+                const ans = this.add.rectangle(60 + (105 * number), 580 - (10 * i), 60, Math.floor(90 / total), 0x000000);
+                const body = this.matter.add.rectangle(60 + (105 * number), 580 - (10 * i), 60, Math.floor(90 / total), {
+                    isStatic: false,
+                    restitution: 1
+                });
+                ans.setStrokeStyle(2, "0xF5EA14");
+                var ledge = this.matter.add.gameObject(ans, body);
+
+            }
+            // if denominator, colour it white or something else
+            else {
+                const ans = this.add.rectangle(60 + (105 * number), 580 - (10 * i), 60, Math.floor(90 / total), 0xFFFFFF);
+                const body = this.matter.add.rectangle(60 + (105 * number), 580 - (10 * i), 60, Math.floor(90 / total), {
+                    isStatic: false,
+                    restitution: 1
+                });
+                ans.setStrokeStyle(2, "0xF5EA14");
+                var ledge = this.matter.add.gameObject(ans, body);
+            }
+
+            // this.tweens.add({
+            //     targets: ledge,
+            //     alpha: 0.5,
+            //     yoyo: true,
+            //     repeat: -1,
+            //     ease: 'Sine.easeInOut'
+
+            // });
+        }
     }
+
 
     // random colour generator
     rand_hex() {
@@ -254,43 +311,81 @@ class Level_1 extends Phaser.Scene {
         return parseInt(hex_value.join('').replace(/^#/, '0X'), 16);
     }
 
-    updateCounter() {
-        timer
+
+    scoreKeeper() {
+        total_score_text.destroy();
+        current_score_text.destroy();
+        total_score_text = this.add.text(5, 10, 'Total Score: ' + total_score_keeper, {
+            fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'
+        });
+
+        current_score_text = this.add.text(5, 40, 'Current Score: ' + current_score_keeper, {
+            fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'
+        });
+        current_score_keeper--;
     }
 
 
-    /**
-     * add the trajectory of the expected projectile path of the ball based on gravity and velocity
-     * @param {x} x end position of the expected point of the end of the ball's x trajectory
-     * @param {y} y end position of the expected point of the end of the ball's y trajectory
-     */
-    drawTrajectory(x, y) {
-        var xf = (x - player.body.x);
-        var yf = (y - player.body.y);
-        var m = yf / xf;
-        var c = y - (m * x);
-        // var xf = Math.abs(x - player.body.x); // x distance between two points
-        // var yf = Math.abs(y - player.body.y);
-        // var theta = Math.tan(yf / xf) * 180 / Math.PI; //tan of angle between start and end
-        // var dist = Math.sqrt((xf ** 2) + (yf ** 2));
-        // var vo = Math.sqrt((velocity_x) ** 2 + (velocity_y) ** 2);
+    ask_question() {
+        let temp = questions[this.rand_interval(0, questions.length - 1)];
 
-        dots.clear(true);
-        dots = this.add.group();
+        if (temp.asked) {
+            this.ask_question()
+        } else {
+            level_counter++;
+            current_question = temp;
+            temp.asked = true;
+            return;
+        }
 
-        for (let i = 0; i < 25; i++) {
-            var temp_x = (player.body.x + 45) + (i * 20);
-            // var temp_y = (((-1 * (gravity / (2 * vo) ** 2) * (Math.tan(theta) ** 2 + 1)) * temp_x * temp_x) + (Math.tan(theta) * temp_x)); // very broken, please fix
-            var temp_y = -1 * m * temp_x + c;
-
-            dot = this.add.sprite(temp_x, temp_y, 'white').setScale(0.005, 0.005);
-            dots.add(dot);
+        if (level_counter == 7) {
+            alert("LEVEL COMPLETED");
+            // this.scene.start("Level_2");
+            // ball.destroy();
+            // ball_num_text.destroy();
+            // ball_den_text.destroy();
+            // current_score_keeper = 0;
+            // current_score_text.destroy();
+            // total_score_text.destroy();
+            // questions = null;
+            // line1.destroy();
         }
     }
 
-    shoot(x, y) {
-        dots.destroy(true);
-        trajectory_disable = true;
-        player.setVelocity(x, y);
+
+    // Check if the basket is correct
+    logic_checker(ball_obj, current) {
+        let curr = questions.indexOf(current, 0);
+
+        if (ball_obj.y > 475 && ball_obj.x < baskets[curr].x + 60 && ball_obj.x > baskets[curr].x - 60) {
+            this.ball_manager(ball_obj);
+            total_score_keeper += current_score_keeper;
+            current_score_keeper = 100;
+            timer -= 50;
+            clearInterval(interval);
+            interval = setInterval(() => {
+                total_score_text.destroy();
+                current_score_text.destroy();
+
+                total_score_text = this.add.text(5, 10, 'Total Score: ' + total_score_keeper, {
+                    fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'
+                });
+
+                current_score_text = this.add.text(5, 40, 'Current Score: ' + current_score_keeper, {
+                    fontFamily: 'Georgia, "Goudy Bookletter 1911", Times, serif'
+                });
+                current_score_keeper--;
+            }, timer);
+        }
+    }
+
+
+    ball_manager(ball_obj) {
+        ball_obj.destroy();
+        ball_num_text.destroy();
+        ball_den_text.destroy();
+        line1.destroy();
+
+        this.ball_creator();
     }
 }
