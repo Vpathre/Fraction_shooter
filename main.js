@@ -98,15 +98,15 @@ var config = {
             }
         },
         matter: {
-            debug: false,
+            debug: true,
             gravity: {
                 y: 0.8
             }
         }
     },
-    scene: [Level_1]
+    // scene: [Level_1]
     // scene: [Level_2]
-    // scene: [Level_3]
+    scene: [Level_3]
     // Level_1, Level_2
     // Level_4,
     // Level_5
